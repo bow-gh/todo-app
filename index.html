@@ -316,19 +316,28 @@
     errEl.style.display = 'none';
     let config;
     try {
-      // Strip single-line comments (// ...)
-      raw = raw.replace(/\/\/[^\n]*/g, '');
-      // Strip block comments (/* ... */)
-      raw = raw.replace(/\/\*[\s\S]*?\*\//g, '');
-      // Extract just the { ... } object literal (handles full SDK snippet paste)
+      // Strip single-line and block comments
+      raw = raw.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      // Extract the { ... } object literal
       const match = raw.match(/\{[\s\S]*\}/);
       if (match) raw = match[0];
-      // Evaluate as a JS expression (handles unquoted keys from Firebase console)
-      config = Function('"use strict"; return (' + raw.trim() + ')')();
+      raw = raw.trim();
+      // Try standard JSON parse first (quoted keys)
+      try { config = JSON.parse(raw); } catch (_) {}
+      // Fallback: evaluate as JS expression (unquoted keys)
+      if (!config) config = Function('"use strict"; return (' + raw + ')')();
     } catch(e) {
-      errEl.textContent = 'Could not parse config. Please paste just the firebaseConfig object from Firebase console → Project Settings → Your apps → SDK setup → Config.';
-      errEl.style.display = 'block';
-      return;
+      // Fallback: extract key:value pairs with regex
+      try {
+        config = {};
+        const pairs = raw.matchAll(/["']?(\w+)["']?\s*:\s*["']([^"']+)["']/g);
+        for (const [, k, v] of pairs) config[k] = v;
+        if (!config.apiKey) throw new Error('no apiKey found');
+      } catch(e2) {
+        errEl.textContent = 'Parse error: ' + e.message + '. Try copying the config again from Firebase → Project Settings → Your apps → Config tab.';
+        errEl.style.display = 'block';
+        return;
+      }
     }
     if (!config.databaseURL) {
       errEl.textContent = 'Missing databaseURL — make sure you enabled Realtime Database and copied the full config.';
