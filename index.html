@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>To-Do List</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; }
+    .completed-text { text-decoration: line-through; opacity: 0.4; }
+    select, input { color-scheme: dark; }
+
+    /* Table */
+    .sheet { width: 100%; border-collapse: collapse; }
+    .sheet th {
+      background: #1a1d27; color: #64748b; font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 12px;
+      text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08);
+      border-right: 1px solid rgba(255,255,255,0.05); white-space: nowrap; user-select: none;
+    }
+    .sheet th:last-child { border-right: none; }
+    .sheet td {
+      padding: 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+      border-right: 1px solid rgba(255,255,255,0.04); vertical-align: middle;
+    }
+    .sheet td:last-child { border-right: none; }
+    .sheet tr:hover td { background: rgba(255,255,255,0.025); }
+    .sheet tr.completed-row td { opacity: 0.5; }
+
+    /* Cell inputs */
+    .cell-input {
+      width: 100%; background: transparent; border: none; outline: none;
+      color: #e2e8f0; font-size: 0.8125rem; padding: 10px 12px; font-family: inherit;
+    }
+    .cell-input:focus { background: rgba(139,92,246,0.08); box-shadow: inset 0 0 0 2px rgba(139,92,246,0.5); }
+    .cell-input::placeholder { color: #374151; }
+    .cell-select {
+      width: 100%; background: transparent; border: none; outline: none; color: #e2e8f0;
+      font-size: 0.8125rem; padding: 10px 12px; font-family: inherit; cursor: pointer;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+    }
+    .cell-select:focus {
+      background-color: rgba(139,92,246,0.08); box-shadow: inset 0 0 0 2px rgba(139,92,246,0.5);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center;
+    }
+    .cell-select option { background: #1e2130; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.4); cursor: pointer; margin-right: 2px; }
+
+    /* Priority */
+    .pri-high { color: #f87171; } .pri-medium { color: #fbbf24; }
+    .pri-low  { color: #34d399; } .pri-none   { color: #64748b; }
+
+    /* Add row */
+    .add-row-btn {
+      display: flex; align-items: center; gap: 6px; width: 100%; padding: 9px 12px;
+      background: transparent; border: none; color: #4b5563; font-size: 0.8rem;
+      font-family: inherit; cursor: pointer; text-align: left; transition: color 0.15s, background 0.15s;
+    }
+    .add-row-btn:hover { color: #a78bfa; background: rgba(139,92,246,0.05); }
+
+    /* Table wrapper */
+    .table-wrap { overflow-x: auto; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; }
+
+    /* Filter */
+    .filter-select {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      color: #94a3b8; border-radius: 8px; padding: 5px 10px; font-size: 0.75rem;
+      font-family: inherit; outline: none; cursor: pointer;
+    }
+    .filter-select:focus { border-color: rgba(139,92,246,0.5); }
+    .filter-select option { background: #1e2130; }
+
+    /* Tabs */
+    .tab-bar { display: flex; gap: 2px; background: rgba(255,255,255,0.04); border-radius: 10px; padding: 3px; }
+    .tab-btn {
+      padding: 5px 16px; border-radius: 8px; border: none; background: transparent;
+      color: #64748b; font-size: 0.8rem; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .tab-btn:hover { color: #94a3b8; }
+    .tab-btn.active { background: #1e2130; color: #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+    .tab-count { background: rgba(255,255,255,0.08); border-radius: 9999px; padding: 1px 7px; font-size: 0.7rem; font-weight: 700; }
+    .tab-btn.active .tab-count { background: rgba(139,92,246,0.25); color: #a78bfa; }
+
+    /* Sync dot */
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; transition: background 0.3s; }
+    .sync-dot.live    { background: #34d399; box-shadow: 0 0 6px #34d39988; }
+    .sync-dot.offline { background: #64748b; }
+    .sync-dot.error   { background: #f87171; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .sync-dot.syncing { background: #a78bfa; animation: pulse 1s infinite; }
+
+    /* Setup banner */
+    .setup-banner {
+      background: linear-gradient(135deg, #1e1a2e, #1a1d27);
+      border: 1px solid rgba(139,92,246,0.3);
+      border-radius: 12px; padding: 20px 24px;
+    }
+    .setup-step {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .setup-step:last-child { border-bottom: none; }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%; background: rgba(139,92,246,0.2);
+      color: #a78bfa; font-size: 0.7rem; font-weight: 800; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+    }
+    code {
+      background: rgba(255,255,255,0.07); border-radius: 4px;
+      padding: 1px 6px; font-size: 0.78rem; color: #a78bfa; font-family: monospace;
+    }
+    .config-input {
+      background: #0f1117; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+      color: #e2e8f0; font-size: 0.75rem; font-family: monospace; padding: 10px 12px;
+      width: 100%; outline: none; resize: vertical; margin-top: 8px; min-height: 120px;
+    }
+    .config-input:focus { border-color: rgba(139,92,246,0.5); }
+    @keyframes rowIn { from { background: rgba(139,92,246,0.12); } to { background: transparent; } }
+    .row-new td { animation: rowIn 0.8s ease-out; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- SETUP BANNER (hidden once configured) -->
+  <div id="setupBanner" class="max-w-6xl mx-auto px-6 pt-5" style="display:none">
+    <div class="setup-banner">
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-base font-bold text-white">Connect Firebase to share with your EA</h2>
+          <p class="text-xs text-slate-500 mt-0.5">One-time setup (~3 minutes). Once done, you and your EA open the same file and edits sync live.</p>
+        </div>
+        <button onclick="dismissSetup()" class="text-slate-600 hover:text-slate-400 text-xs flex-shrink-0 mt-1">Dismiss</button>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">1</div>
+        <div class="text-sm text-slate-300">Go to <strong class="text-white">console.firebase.google.com</strong> → click <strong class="text-white">Add project</strong> → give it any name → continue through the steps.</div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">2</div>
+        <div class="text-sm text-slate-300">In your new project, click <strong class="text-white">Build → Realtime Database → Create database</strong> → choose <em>Start in test mode</em> → Enable.</div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">3</div>
+        <div class="text-sm text-slate-300">Go to <strong class="text-white">Project Settings</strong> (gear icon) → <strong class="text-white">Your apps → Add app → Web (&lt;/&gt;)</strong> → register it. Copy the <code>firebaseConfig</code> object shown.</div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">4</div>
+        <div class="text-sm text-slate-300 w-full">
+          Paste your config JSON below and click <strong class="text-white">Save & Connect</strong>.
+          <textarea id="configInput" class="config-input" placeholder='{
+  "apiKey": "...",
+  "authDomain": "...",
+  "databaseURL": "https://YOUR-PROJECT-default-rtdb.firebaseio.com",
+  "projectId": "...",
+  "storageBucket": "...",
+  "messagingSenderId": "...",
+  "appId": "..."
+}'></textarea>
+          <div id="configError" class="text-red-400 text-xs mt-1" style="display:none"></div>
+          <button onclick="saveConfig()" class="mt-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors">Save & Connect</button>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">5</div>
+        <div class="text-sm text-slate-300">Send your EA this HTML file (or host it on <strong class="text-white">netlify.com/drop</strong> — just drag the file). They open it and edits sync in real-time.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-10 border-b border-white/10" style="background: rgba(15,17,23,0.9); backdrop-filter: blur(12px);">
+    <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+      <div class="flex-shrink-0">
+        <h1 class="text-xl font-bold text-white tracking-tight">My To-Do List</h1>
+        <p id="summary" class="text-xs text-slate-500 mt-0.5"></p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tab-bar">
+        <button id="tab-active" class="tab-btn active" onclick="setTab('active')">
+          Active <span id="count-active" class="tab-count">0</span>
+        </button>
+        <button id="tab-completed" class="tab-btn" onclick="setTab('completed')">
+          Completed <span id="count-completed" class="tab-count">0</span>
+        </button>
+      </div>
+
+      <!-- Filters + sync status -->
+      <div class="flex items-center gap-2 flex-wrap justify-end">
+        <select id="filterPriority" onchange="render()" class="filter-select">
+          <option value="all">All priorities</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <select id="filterCategory" onchange="render()" class="filter-select">
+          <option value="all">All categories</option>
+        </select>
+        <select id="filterRequestor" onchange="render()" class="filter-select">
+          <option value="all">All requestors</option>
+        </select>
+
+        <!-- Sync status -->
+        <div class="flex items-center gap-1.5 ml-1" title="" id="syncStatus">
+          <div class="sync-dot offline" id="syncDot"></div>
+          <span id="syncLabel" class="text-xs text-slate-600">Local only</span>
+        </div>
+
+        <!-- Setup button (shown when not connected) -->
+        <button id="setupBtn" onclick="showSetup()" class="text-xs text-violet-400 hover:text-violet-300 border border-violet-800 hover:border-violet-600 rounded-lg px-2.5 py-1 transition-colors" style="display:none">
+          Connect Firebase
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- TABLE -->
+  <div class="max-w-6xl mx-auto px-6 py-5">
+    <div class="table-wrap">
+      <table class="sheet" id="taskTable">
+        <thead>
+          <tr>
+            <th style="width:36px"></th>
+            <th style="min-width:260px">Task</th>
+            <th style="width:120px">
+              <span class="flex items-center gap-1 cursor-pointer select-none" onclick="setSortAndRender('priority')">
+                Priority <span id="sort-priority" class="opacity-40">↕</span>
+              </span>
+            </th>
+            <th style="width:140px">
+              <span class="flex items-center gap-1 cursor-pointer select-none" onclick="setSortAndRender('due')">
+                Due Date <span id="sort-due" class="opacity-40">↕</span>
+              </span>
+            </th>
+            <th style="width:150px">Category</th>
+            <th style="width:160px">Requestor</th>
+            <th style="width:160px">Owner</th>
+            <th style="min-width:200px">Notes / Links</th>
+            <th style="width:36px"></th>
+          </tr>
+        </thead>
+        <tbody id="taskBody"></tbody>
+      </table>
+      <button id="addRowBtn" class="add-row-btn" onclick="addNewRow()">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Add task
+      </button>
+    </div>
+  </div>
+
+<script>
+  // ─── Firebase config (saved in localStorage after first-time setup) ──────────
+  const FIREBASE_CONFIG_KEY = 'firebaseConfig_v1';
+  let db = null;
+  let tasksRef = null;
+  let remoteListenerActive = false;
+
+  function loadFirebaseConfig() {
+    try { return JSON.parse(localStorage.getItem(FIREBASE_CONFIG_KEY)); } catch { return null; }
+  }
+
+  function initFirebase(config) {
+    try {
+      if (firebase.apps.length) firebase.apps.forEach(a => a.delete());
+      firebase.initializeApp(config);
+      db = firebase.database();
+      tasksRef = db.ref('tasks');
+
+      setSyncStatus('syncing', 'Connecting…');
+
+      // Real-time listener — replaces local state whenever Firebase updates
+      tasksRef.on('value', snapshot => {
+        const data = snapshot.val();
+        tasks = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+        // Merge any seeded tasks on first load
+        seedInitialTasks(false);
+        render();
+        setSyncStatus('live', 'Live sync');
+      }, err => {
+        setSyncStatus('error', 'Sync error');
+        console.error(err);
+      });
+
+      // Connection state
+      db.ref('.info/connected').on('value', snap => {
+        if (!snap.val()) setSyncStatus('offline', 'Reconnecting…');
+      });
+
+      remoteListenerActive = true;
+    } catch (e) {
+      setSyncStatus('error', 'Config error');
+      console.error(e);
+    }
+  }
+
+  function setSyncStatus(state, label) {
+    const dot = document.getElementById('syncDot');
+    const lbl = document.getElementById('syncLabel');
+    dot.className = 'sync-dot ' + state;
+    lbl.textContent = label;
+    lbl.style.color = state === 'live' ? '#34d399' : state === 'error' ? '#f87171' : '#64748b';
+  }
+
+  function saveConfig() {
+    let raw = document.getElementById('configInput').value.trim();
+    const errEl = document.getElementById('configError');
+    errEl.style.display = 'none';
+    let config;
+    try {
+      // Strip single-line comments (// ...)
+      raw = raw.replace(/\/\/[^\n]*/g, '');
+      // Strip block comments (/* ... */)
+      raw = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+      // Extract just the { ... } object literal (handles full SDK snippet paste)
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) raw = match[0];
+      // Evaluate as a JS expression (handles unquoted keys from Firebase console)
+      config = Function('"use strict"; return (' + raw.trim() + ')')();
+    } catch(e) {
+      errEl.textContent = 'Could not parse config. Please paste just the firebaseConfig object from Firebase console → Project Settings → Your apps → SDK setup → Config.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (!config.databaseURL) {
+      errEl.textContent = 'Missing databaseURL — make sure you enabled Realtime Database and copied the full config.';
+      errEl.style.display = 'block';
+      return;
+    }
+    localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(config));
+    document.getElementById('setupBanner').style.display = 'none';
+    document.getElementById('setupBtn').style.display = 'none';
+    // Migrate existing local tasks to Firebase
+    initFirebase(config);
+    setTimeout(() => {
+      if (tasks.length > 0) saveToFirebase();
+    }, 1500);
+  }
+
+  function showSetup() {
+    document.getElementById('setupBanner').style.display = 'block';
+    document.getElementById('setupBanner').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function dismissSetup() {
+    document.getElementById('setupBanner').style.display = 'none';
+  }
+
+  // ─── State ──────────────────────────────────────────────────────────────────
+  let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+  let sortBy = 'created';
+  let sortDir = 1;
+  let activeTab = 'active';
+
+  function setTab(tab) {
+    activeTab = tab;
+    document.getElementById('tab-active').classList.toggle('active', tab === 'active');
+    document.getElementById('tab-completed').classList.toggle('active', tab === 'completed');
+    render();
+  }
+
+  // ─── Persistence ─────────────────────────────────────────────────────────────
+  function save() {
+    // Always keep a local backup
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    if (remoteListenerActive) saveToFirebase();
+  }
+
+  function saveToFirebase() {
+    if (!tasksRef) return;
+    setSyncStatus('syncing', 'Saving…');
+    tasksRef.set(tasks)
+      .then(() => setSyncStatus('live', 'Live sync'))
+      .catch(() => setSyncStatus('error', 'Save failed'));
+  }
+
+  // ─── Seed tasks (run once) ───────────────────────────────────────────────────
+  function seedInitialTasks(andSave = true) {
+    const seeds = [
+      { key: 'seeded_atlassian', title: 'Atlassian follow up' },
+      { key: 'seeded_flipkart',  title: 'Flipkart follow up'  },
+    ];
+    let changed = false;
+    seeds.forEach(s => {
+      if (!localStorage.getItem(s.key)) {
+        const id = Date.now() + Math.random();
+        tasks.push({ id, title: s.title, priority: 'none', due: '', category: '', requestor: '', owner: '', notes: '', completed: false, created: id });
+        localStorage.setItem(s.key, '1');
+        changed = true;
+      }
+    });
+    if (changed && andSave) save();
+  }
+
+  // ─── CRUD ────────────────────────────────────────────────────────────────────
+  function addNewRow() {
+    const id = Date.now();
+    tasks.push({ id, title: '', priority: 'none', due: '', category: '', requestor: '', owner: '', notes: '', completed: false, created: id });
+    save(); render();
+    setTimeout(() => {
+      const input = document.querySelector(`[data-id="${id}"] .title-input`);
+      if (input) input.focus();
+    }, 30);
+  }
+
+  function updateField(id, field, value) {
+    const t = tasks.find(t => t.id === id);
+    if (t) t[field] = value;
+    save();
+    if (field === 'completed') render();
+    else { updateFilterOptions(); updateSummary(); }
+  }
+
+  function deleteTask(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    save(); render();
+  }
+
+  // ─── Sort / filter ───────────────────────────────────────────────────────────
+  const priorityOrder = { high: 0, medium: 1, low: 2, none: 3 };
+
+  function setSortAndRender(field) {
+    if (sortBy === field) sortDir *= -1;
+    else { sortBy = field; sortDir = 1; }
+    render();
+  }
+
+  function getFiltered() {
+    const priority  = document.getElementById('filterPriority').value;
+    const category  = document.getElementById('filterCategory').value;
+    const requestor = document.getElementById('filterRequestor').value;
+
+    let list = tasks.filter(t => {
+      if (activeTab === 'active'    && t.completed)  return false;
+      if (activeTab === 'completed' && !t.completed) return false;
+      if (priority  !== 'all' && t.priority  !== priority)                             return false;
+      if (category  !== 'all' && t.category.toLowerCase()  !== category.toLowerCase()) return false;
+      if (requestor !== 'all' && t.requestor.toLowerCase() !== requestor.toLowerCase()) return false;
+      return true;
+    });
+
+    list.sort((a, b) => {
+      if (sortBy === 'priority') return (priorityOrder[a.priority] - priorityOrder[b.priority]) * sortDir;
+      if (sortBy === 'due') {
+        const av = a.due || '9999', bv = b.due || '9999';
+        return av < bv ? -sortDir : av > bv ? sortDir : 0;
+      }
+      return (a.created - b.created) * sortDir;
+    });
+    return list;
+  }
+
+  // ─── Render helpers ──────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function priClass(p) {
+    return { high:'pri-high', medium:'pri-medium', low:'pri-low', none:'pri-none' }[p] || 'pri-none';
+  }
+  function formatDue(dateStr) {
+    if (!dateStr) return '';
+    const [y,m,d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m-1, d);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.round((date - today) / 86400000);
+    if (diff < 0)  return `<span style="color:#f87171;font-size:0.7rem;font-weight:600">▲ Overdue</span>`;
+    if (diff === 0) return `<span style="color:#fbbf24;font-size:0.7rem;font-weight:600">● Today</span>`;
+    if (diff === 1) return `<span style="color:#fbbf24;font-size:0.7rem;font-weight:500">Tomorrow</span>`;
+    return `<span style="color:#64748b;font-size:0.75rem">${date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>`;
+  }
+
+  function updateSummary() {
+    const total     = tasks.length;
+    const completed = tasks.filter(t => t.completed).length;
+    const active    = total - completed;
+    document.getElementById('summary').textContent =
+      total === 0 ? 'No tasks yet' : `${completed} of ${total} completed`;
+    document.getElementById('count-active').textContent    = active;
+    document.getElementById('count-completed').textContent = completed;
+  }
+
+  function updateFilterOptions() {
+    const reqs = [...new Set(tasks.map(t => t.requestor).filter(Boolean))].sort();
+
+    const catSel = document.getElementById('filterCategory');
+    const curCat = catSel.value;
+    catSel.innerHTML = '<option value="all">All categories</option>';
+    ['Exec Note','Forecast','Escalation','Project','Operations'].forEach(c => {
+      const o = document.createElement('option'); o.value = c; o.textContent = c;
+      if (c === curCat) o.selected = true; catSel.appendChild(o);
+    });
+
+    const reqSel = document.getElementById('filterRequestor');
+    const curReq = reqSel.value;
+    reqSel.innerHTML = '<option value="all">All requestors</option>';
+    reqs.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; if (r === curReq) o.selected = true; reqSel.appendChild(o); });
+  }
+
+  // ─── Main render ─────────────────────────────────────────────────────────────
+  function render() {
+    updateSummary();
+    updateFilterOptions();
+
+    ['priority','due'].forEach(f => {
+      const el = document.getElementById(`sort-${f}`);
+      if (!el) return;
+      el.textContent = sortBy === f ? (sortDir === 1 ? '↑' : '↓') : '↕';
+      el.style.opacity = sortBy === f ? '1' : '0.4';
+    });
+
+    const list = getFiltered();
+    const tbody = document.getElementById('taskBody');
+    const allReqs = [...new Set(tasks.map(t => t.requestor).filter(Boolean))];
+
+    tbody.innerHTML = list.map(t => `
+      <tr data-id="${t.id}" class="${t.completed ? 'completed-row' : ''}">
+        <td style="padding:0 0 0 12px;width:36px">
+          <button onclick="updateField(${t.id},'completed',${!t.completed})"
+            class="w-4 h-4 rounded border-2 flex items-center justify-center transition-all flex-shrink-0"
+            style="${t.completed ? 'background:#7c3aed;border-color:#7c3aed' : 'border-color:#374151'}">
+            ${t.completed ? '<svg class="w-2.5 h-2.5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+          </button>
+        </td>
+        <td>
+          <input type="text" value="${esc(t.title)}" placeholder="Task name…"
+            class="cell-input title-input ${t.completed ? 'completed-text' : ''}"
+            onchange="updateField(${t.id},'title',this.value)" />
+        </td>
+        <td>
+          <select class="cell-select ${priClass(t.priority)}"
+            onchange="updateField(${t.id},'priority',this.value); this.className='cell-select '+priClass(this.value)">
+            <option value="none"   ${t.priority==='none'   ?'selected':''}>— None</option>
+            <option value="low"    ${t.priority==='low'    ?'selected':''}>↓ Low</option>
+            <option value="medium" ${t.priority==='medium' ?'selected':''}>→ Medium</option>
+            <option value="high"   ${t.priority==='high'   ?'selected':''}>↑ High</option>
+          </select>
+        </td>
+        <td>
+          <div style="display:flex;flex-direction:column;padding:4px 12px;gap:2px">
+            <input type="date" value="${esc(t.due)}" class="cell-input" style="padding:6px 0;font-size:0.8rem"
+              onchange="updateField(${t.id},'due',this.value)" />
+            <div style="font-size:0.7rem;min-height:14px">${formatDue(t.due)}</div>
+          </div>
+        </td>
+        <td>
+          <select class="cell-select" style="color:${t.category ? '#e2e8f0' : '#374151'}"
+            onchange="updateField(${t.id},'category',this.value); this.style.color=this.value?'#e2e8f0':'#374151'">
+            <option value=""           ${!t.category             ?'selected':''} style="color:#374151">— None</option>
+            <option value="Exec Note"  ${t.category==='Exec Note'  ?'selected':''}>Exec Note</option>
+            <option value="Forecast"   ${t.category==='Forecast'   ?'selected':''}>Forecast</option>
+            <option value="Escalation" ${t.category==='Escalation' ?'selected':''}>Escalation</option>
+            <option value="Project"    ${t.category==='Project'    ?'selected':''}>Project</option>
+            <option value="Operations" ${t.category==='Operations' ?'selected':''}>Operations</option>
+          </select>
+        </td>
+        <td>
+          <input type="text" value="${esc(t.requestor)}" placeholder="Add requestor…"
+            class="cell-input" list="reqDL" onchange="updateField(${t.id},'requestor',this.value)" />
+        </td>
+        <td>
+          <input type="text" value="${esc(t.owner||'')}" placeholder="Add owner…"
+            class="cell-input" onchange="updateField(${t.id},'owner',this.value)" />
+        </td>
+        <td>
+          <input type="text" value="${esc(t.notes||'')}" placeholder="Add notes or paste a link…"
+            class="cell-input" onchange="updateField(${t.id},'notes',this.value)" />
+        </td>
+        <td style="padding:0 8px;width:36px">
+          <button onclick="deleteTask(${t.id})"
+            class="w-6 h-6 rounded flex items-center justify-center opacity-0 transition-all"
+            style="color:#4b5563"
+            onmouseenter="this.style.color='#f87171';this.style.background='rgba(248,113,113,0.1)'"
+            onmouseleave="this.style.color='#4b5563';this.style.background='transparent'"
+            title="Delete">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </td>
+      </tr>`).join('');
+
+    tbody.querySelectorAll('tr').forEach(row => {
+      const btn = row.querySelector('button[title="Delete"]');
+      if (!btn) return;
+      row.addEventListener('mouseenter', () => btn.style.opacity = '1');
+      row.addEventListener('mouseleave', () => btn.style.opacity = '0');
+    });
+
+    document.getElementById('addRowBtn').style.display = activeTab === 'active' ? 'flex' : 'none';
+
+    let reqDL = document.getElementById('reqDL');
+    if (!reqDL) { reqDL = document.createElement('datalist'); reqDL.id = 'reqDL'; document.body.appendChild(reqDL); }
+    reqDL.innerHTML = allReqs.map(r => `<option value="${esc(r)}">`).join('');
+  }
+
+  // ─── Init ────────────────────────────────────────────────────────────────────
+  const savedConfig = loadFirebaseConfig();
+  if (savedConfig) {
+    initFirebase(savedConfig);
+    // Tasks will be loaded from Firebase via onValue; render will be called there
+  } else {
+    // No Firebase yet — show setup banner and run locally
+    document.getElementById('setupBanner').style.display = 'block';
+    document.getElementById('setupBtn').style.display = 'flex';
+    seedInitialTasks(true);
+    render();
+  }
+</script>
+</body>
+</html>
