@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens ── */
+    :root {
+      --bg:        #f0f2f5;
+      --surface:   #ffffff;
+      --border:    #e5e7eb;
+      --border2:   #f3f4f6;
+      --text:      #1a1a2e;
+      --muted:     #6b7280;
+      --faint:     #9ca3af;
+      --accent:    #6366f1;
+      --accent-dk: #4f46e5;
+      --row-hover: #fafafa;
+      --cell-focus:#f5f3ff;
+      --done-op:   0.42;
+    }
+    [data-theme="dark"] {
+      --bg:        #0f1117;
+      --surface:   #1c1f2b;
+      --border:    #2d3148;
+      --border2:   #252839;
+      --text:      #e2e4f0;
+      --muted:     #8b90a8;
+      --faint:     #555a72;
+      --accent:    #818cf8;
+      --accent-dk: #6366f1;
+      --row-hover: #21243a;
+      --cell-focus:#1e2040;
+      --done-op:   0.35;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 48px 24px;
+      color: var(--text);
+      transition: background 0.25s, color 0.25s;
+    }
+
+    .container { width: 100%; max-width: 1200px; margin: 0 auto; }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+    h1 { font-size: 2rem; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { font-size: 0.875rem; color: var(--muted); }
+
+    /* Dark-mode toggle */
+    .theme-btn {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      line-height: 1;
+    }
+    .theme-btn:hover { border-color: var(--accent); }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      gap: 12px;
+    }
+
+    .toolbar-left { display: flex; align-items: center; gap: 12px; }
+
+    .filters { display: flex; gap: 8px; }
+    .filter-btn {
+      padding: 6px 14px;
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      background: var(--surface);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .filter-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+    /* Priority filter */
+    .priority-filter {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .pf-label { font-size: 0.8rem; color: var(--muted); }
+    .pf-btn {
+      padding: 4px 10px;
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      background: var(--surface);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .pf-btn.active-p { color: #fff; border-color: transparent; }
+    .pf-btn[data-p="high"].active-p  { background: #ef4444; }
+    .pf-btn[data-p="medium"].active-p{ background: #f59e0b; }
+    .pf-btn[data-p="low"].active-p   { background: #22c55e; }
+
+    .add-btn {
+      padding: 8px 18px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .add-btn:hover { background: var(--accent-dk); }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: var(--surface);
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      overflow: hidden;
+      transition: background 0.25s, border-color 0.25s;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead tr {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    th.col-drag  { width: 28px; }
+    th.col-check { width: 40px; }
+    th.col-pri   { width: 90px; }
+    th.col-task  { width: 24%; }
+    th.col-cat   { width: 120px; }
+    th.col-date  { width: 110px; }
+    th.col-req   { width: 13%; }
+    th.col-owner { width: 13%; }
+    th.col-notes { } /* fills remaining */
+    th.col-del   { width: 40px; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border2);
+      transition: background 0.1s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--row-hover); }
+    tbody tr.done { opacity: var(--done-op); }
+
+    /* Drag states */
+    tbody tr.dragging { opacity: 0.4; }
+    tbody tr.drag-over { box-shadow: inset 0 2px 0 var(--accent); }
+
+    td { padding: 0; vertical-align: middle; }
+    td.td-check, td.td-del { text-align: center; padding: 10px 8px; }
+
+    /* Drag handle */
+    td.td-drag { text-align: center; padding: 0 4px; cursor: grab; }
+    .drag-handle { color: var(--faint); font-size: 0.85rem; line-height: 1; user-select: none; padding: 10px 4px; }
+    tbody tr:hover .drag-handle { color: var(--muted); }
+
+    input[type="checkbox"] {
+      width: 18px; height: 18px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Priority select */
+    td.td-pri { padding: 6px 10px; }
+    .pri-select {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 24px 3px 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      background-color: var(--border2);
+      color: var(--faint);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239ca3af'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      transition: all 0.15s;
+      outline: none;
+      white-space: nowrap;
+    }
+    .pri-select:focus { box-shadow: 0 0 0 2px var(--accent); }
+    .pri-select.pri-low    { background-color: #dcfce7; color: #15803d; border-color: #86efac; }
+    .pri-select.pri-medium { background-color: #fef3c7; color: #b45309; border-color: #fcd34d; }
+    .pri-select.pri-high   { background-color: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+    [data-theme="dark"] .pri-select            { background-color: #23263a; color: var(--faint); border-color: var(--border); }
+    [data-theme="dark"] .pri-select.pri-low    { background-color: #14361e; color: #4ade80; border-color: #166534; }
+    [data-theme="dark"] .pri-select.pri-medium { background-color: #3b2a0a; color: #fbbf24; border-color: #92400e; }
+    [data-theme="dark"] .pri-select.pri-high   { background-color: #3b0a0a; color: #f87171; border-color: #991b1b; }
+
+    /* Editable cells */
+    .cell {
+      display: block;
+      width: 100%;
+      min-height: 38px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      color: var(--text);
+      word-break: break-word;
+      cursor: text;
+      outline: none;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .cell:focus {
+      background: var(--cell-focus);
+      box-shadow: inset 0 0 0 2px var(--accent);
+      border-radius: 4px;
+      position: relative;
+      z-index: 1;
+    }
+    .cell.task-cell { font-weight: 500; }
+    .done .task-cell { text-decoration: line-through; color: var(--faint); }
+    /* Date input */
+    .date-input {
+      display: block;
+      width: 100%;
+      min-height: 38px;
+      padding: 9px 12px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      color: var(--muted);
+      background: transparent;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .date-input:focus {
+      background: var(--cell-focus);
+      box-shadow: inset 0 0 0 2px var(--accent);
+      border-radius: 4px;
+    }
+    .date-input.overdue { color: #ef4444; font-weight: 600; }
+    /* Style the date picker icon to match theme */
+    .date-input::-webkit-calendar-picker-indicator {
+      opacity: 0.4;
+      cursor: pointer;
+      filter: var(--cal-icon-filter, none);
+    }
+    [data-theme="dark"] { --cal-icon-filter: invert(1); }
+    .date-input:hover::-webkit-calendar-picker-indicator { opacity: 0.8; }
+    .cell.notes-cell { color: var(--muted); font-size: 0.875rem; }
+    .cell.cat-cell { font-size: 0.82rem; color: var(--accent); font-weight: 500; }
+
+    .cell:empty::before {
+      content: attr(data-ph);
+      color: var(--faint);
+      font-weight: 400;
+      pointer-events: none;
+    }
+    .task-cell:empty::before { color: var(--border); }
+
+    /* Delete */
+    .delete-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--border);
+      font-size: 1rem;
+      padding: 6px 8px;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+    }
+    .delete-btn:hover { color: #ef4444; background: #fee2e2; }
+    [data-theme="dark"] .delete-btn:hover { background: #3b0a0a; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--faint);
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+    /* Footer */
+    .footer {
+      margin-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--faint);
+    }
+    .clear-btn {
+      background: none;
+      border: none;
+      font-size: 0.85rem;
+      color: var(--faint);
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .clear-btn:hover { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-row">
+      <div>
+        <h1>To-Do List</h1>
+        <p class="subtitle">Click any cell to edit &nbsp;·&nbsp; Tab / Enter to move between cells &nbsp;·&nbsp; Drag rows to reorder</p>
+      </div>
+      <button class="theme-btn" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="filters">
+          <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setFilter('active',this)">Active</button>
+          <button class="filter-btn" onclick="setFilter('completed',this)">Completed</button>
+        </div>
+        <div class="priority-filter">
+          <span class="pf-label">Priority:</span>
+          <button class="pf-btn" data-p="high"   onclick="togglePFilter('high',this)">High</button>
+          <button class="pf-btn" data-p="medium" onclick="togglePFilter('medium',this)">Med</button>
+          <button class="pf-btn" data-p="low"    onclick="togglePFilter('low',this)">Low</button>
+        </div>
+      </div>
+      <button class="add-btn" onclick="addTask()">+ Add Task</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-drag"></th>
+            <th class="col-check"></th>
+            <th class="col-pri">Priority</th>
+            <th class="col-task">Task</th>
+            <th class="col-cat">Category</th>
+            <th class="col-date">Date</th>
+            <th class="col-req">Requestor</th>
+            <th class="col-owner">Owner</th>
+            <th class="col-notes">Links / Notes</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="todo-list"></tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      <span id="count-label"></span>
+      <button class="clear-btn" onclick="clearCompleted()">Clear completed</button>
+    </div>
+  </div>
+
+  <script id="slack-tasks-data">
+const SLACK_TASKS = [{"id":1773879902250,"slackId":"1773879902.250399","title":"add Brian to lifechurch","priority":"none","due":"","category":"","requestor":"","owner":"","completed":false,"created":1773879902250}];
+</script>
+
+  <script>
+    // ── Migration + Slack merge ──────────────────────────────────────────────
+    (function() {
+      const stored = JSON.parse(localStorage.getItem('todos') || '[]');
+      const existingSlackIds = new Set(stored.filter(t => t.slackId).map(t => t.slackId));
+
+      const newFromSlack = SLACK_TASKS.filter(t => !existingSlackIds.has(t.slackId)).map(t => ({
+        id: t.id, text: t.title, completed: t.completed, slackId: t.slackId,
+        priority: t.priority || 'none', category: t.category || '',
+        date: t.due || '', requestor: t.requestor || '', owner: t.owner || '', notes: ''
+      }));
+
+      const migrated = stored.map(t => ({
+        priority: 'none', category: '', date: '', requestor: '', owner: '', notes: '', ...t
+      }));
+
+      const merged = newFromSlack.length ? [...newFromSlack, ...migrated] : migrated;
+      localStorage.setItem('todos', JSON.stringify(merged));
+    })();
+
+    // ── State ────────────────────────────────────────────────────────────────
+    let tasks = JSON.parse(localStorage.getItem('todos') || '[]');
+    let filter = 'all';
+    let priorityFilter = null; // null = show all priorities
+
+
+    // ── Persistence ──────────────────────────────────────────────────────────
+    function save() { localStorage.setItem('todos', JSON.stringify(tasks)); }
+
+    // ── Actions ──────────────────────────────────────────────────────────────
+    function addTask() {
+      const t = { id: Date.now(), text: '', completed: false,
+        priority: 'none', category: '', date: '', requestor: '', owner: '', notes: '' };
+      tasks.unshift(t);
+      save();
+      render();
+      document.querySelector(`#item-${t.id} .task-cell`)?.focus();
+    }
+
+    function toggleTask(id) {
+      const t = tasks.find(t => t.id === id);
+      if (t) { t.completed = !t.completed; save(); render(); }
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter(t => t.id !== id);
+      save(); render();
+    }
+
+    function updatePriority(id, sel) {
+      const t = tasks.find(t => t.id === id);
+      if (!t) return;
+      t.priority = sel.value;
+      // Update color class without full re-render
+      sel.className = `pri-select pri-${sel.value}`;
+      save();
+    }
+
+    function updateField(id, field, el) {
+      const t = tasks.find(t => t.id === id);
+      if (!t) return;
+      t[field] = el.innerText.trim();
+      save();
+    }
+
+    function updateDateField(id, input) {
+      const t = tasks.find(t => t.id === id);
+      if (!t) return;
+      t.date = input.value;
+      save();
+      // Update overdue class without full re-render
+      input.classList.toggle('overdue', !t.completed && isOverdue(t.date));
+    }
+
+    // ── Filters ──────────────────────────────────────────────────────────────
+    function setFilter(f, btn) {
+      filter = f;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      render();
+    }
+
+    function togglePFilter(p, btn) {
+      if (priorityFilter === p) {
+        priorityFilter = null;
+        btn.classList.remove('active-p');
+      } else {
+        priorityFilter = p;
+        document.querySelectorAll('.pf-btn').forEach(b => b.classList.remove('active-p'));
+        btn.classList.add('active-p');
+      }
+      render();
+    }
+
+    function clearCompleted() {
+      tasks = tasks.filter(t => !t.completed);
+      save(); render();
+    }
+
+    // ── Theme ────────────────────────────────────────────────────────────────
+    (function() {
+      const saved = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      document.querySelector('.theme-btn').textContent = next === 'dark' ? '☀️' : '🌙';
+    }
+
+    // ── Drag to reorder ──────────────────────────────────────────────────────
+    let dragSrcId = null;
+
+    function onDragStart(e, id) {
+      dragSrcId = id;
+      e.currentTarget.closest('tr').classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function onDragEnd(e) {
+      document.querySelectorAll('tbody tr').forEach(r => {
+        r.classList.remove('dragging', 'drag-over');
+      });
+    }
+    function onDragOver(e, id) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('tbody tr').forEach(r => r.classList.remove('drag-over'));
+      if (id !== dragSrcId) {
+        document.getElementById(`item-${id}`)?.classList.add('drag-over');
+      }
+    }
+    function onDrop(e, targetId) {
+      e.preventDefault();
+      if (dragSrcId === null || dragSrcId === targetId) return;
+      const srcIdx = tasks.findIndex(t => t.id === dragSrcId);
+      const tgtIdx = tasks.findIndex(t => t.id === targetId);
+      if (srcIdx === -1 || tgtIdx === -1) return;
+      const [moved] = tasks.splice(srcIdx, 1);
+      tasks.splice(tgtIdx, 0, moved);
+      save(); render();
+      dragSrcId = null;
+    }
+
+    // ── Keyboard nav ─────────────────────────────────────────────────────────
+    function handleKey(e, id, field, el) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const cells = [...el.closest('tr').querySelectorAll('[contenteditable="true"]')];
+        const idx = cells.indexOf(el);
+        if (idx < cells.length - 1) cells[idx + 1].focus();
+        else el.blur();
+      }
+      if (e.key === 'Escape') el.blur();
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function esc(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function isOverdue(d) {
+      if (!d) return false;
+      return new Date(d) < new Date(new Date().toDateString());
+    }
+
+    // ── Render ───────────────────────────────────────────────────────────────
+    function render() {
+      const tbody = document.getElementById('todo-list');
+      const active = tasks.filter(t => !t.completed).length;
+      document.getElementById('count-label').textContent =
+        `${active} item${active !== 1 ? 's' : ''} left`;
+
+      let visible = tasks.filter(t =>
+        filter === 'all'       ? true :
+        filter === 'active'    ? !t.completed :
+        /* completed */          t.completed
+      );
+      if (priorityFilter) visible = visible.filter(t => (t.priority||'none') === priorityFilter);
+
+      if (visible.length === 0) {
+        const msgs = {
+          all:       'No tasks yet — click "+ Add Task" to get started.',
+          active:    'Nothing left to do!',
+          completed: 'No completed tasks yet.'
+        };
+        tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="icon">✓</div><p>${msgs[filter]}</p></div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = visible.map(t => {
+        const done    = t.completed ? 'done' : '';
+        const pri     = t.priority || 'none';
+        const overdue = !t.completed && isOverdue(t.date) ? ' overdue' : '';
+        const id      = t.id;
+        return `
+          <tr class="${done}" id="item-${id}"
+            ondragover="onDragOver(event,${id})"
+            ondrop="onDrop(event,${id})">
+            <td class="td-drag">
+              <div class="drag-handle" draggable="true"
+                ondragstart="onDragStart(event,${id})"
+                ondragend="onDragEnd(event)">⠿</div>
+            </td>
+            <td class="td-check">
+              <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTask(${id})">
+            </td>
+            <td class="td-pri">
+              <select class="pri-select pri-${pri}" onchange="updatePriority(${id}, this)">
+                <option value="none"   ${pri==='none'   ?'selected':''}>– None</option>
+                <option value="low"    ${pri==='low'    ?'selected':''}>▲ Low</option>
+                <option value="medium" ${pri==='medium' ?'selected':''}>▲ Medium</option>
+                <option value="high"   ${pri==='high'   ?'selected':''}>▲ High</option>
+              </select>
+            </td>
+            <td>
+              <span class="cell task-cell" contenteditable="true"
+                data-ph="Add task…"
+                onblur="updateField(${id},'text',this)"
+                onkeydown="handleKey(event,${id},'text',this)"
+              >${esc(t.text)}</span>
+            </td>
+            <td>
+              <span class="cell cat-cell" contenteditable="true"
+                data-ph="Category"
+                onblur="updateField(${id},'category',this)"
+                onkeydown="handleKey(event,${id},'category',this)"
+              >${esc(t.category)}</span>
+            </td>
+            <td>
+              <input type="date" class="date-input${overdue}"
+                value="${esc(t.date)}"
+                onchange="updateDateField(${id}, this)"
+                tabindex="0">
+            </td>
+            <td>
+              <span class="cell" contenteditable="true"
+                data-ph="Requestor"
+                onblur="updateField(${id},'requestor',this)"
+                onkeydown="handleKey(event,${id},'requestor',this)"
+              >${esc(t.requestor)}</span>
+            </td>
+            <td>
+              <span class="cell" contenteditable="true"
+                data-ph="Owner"
+                onblur="updateField(${id},'owner',this)"
+                onkeydown="handleKey(event,${id},'owner',this)"
+              >${esc(t.owner)}</span>
+            </td>
+            <td>
+              <span class="cell notes-cell" contenteditable="true"
+                data-ph="Links or notes"
+                onblur="updateField(${id},'notes',this)"
+                onkeydown="handleKey(event,${id},'notes',this)"
+              >${esc(t.notes)}</span>
+            </td>
+            <td class="td-del">
+              <button class="delete-btn" onclick="deleteTask(${id})" title="Delete">✕</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Sync theme button icon
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.querySelector('.theme-btn').textContent = isDark ? '☀️' : '🌙';
+    }
+
+    render();
+  </script>
+</body>
+</html>
