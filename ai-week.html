@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Week</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens ── */
+    :root {
+      --bg:        #f0f2f5;
+      --surface:   #ffffff;
+      --surface2:  #f8f9fb;
+      --border:    #e5e7eb;
+      --text:      #1a1a2e;
+      --muted:     #6b7280;
+      --faint:     #9ca3af;
+      --accent:    #6366f1;
+      --accent-dk: #4f46e5;
+      --accent-bg: #eef2ff;
+      --tag-bg:    #f3f4f6;
+      --card-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    [data-theme="dark"] {
+      --bg:        #0c0e16;
+      --surface:   #161927;
+      --surface2:  #1c1f2e;
+      --border:    #252a3d;
+      --text:      #e2e4f0;
+      --muted:     #8b90a8;
+      --faint:     #4a5068;
+      --accent:    #818cf8;
+      --accent-dk: #6366f1;
+      --accent-bg: #1e2040;
+      --tag-bg:    #1c1f2e;
+      --card-shadow: 0 1px 6px rgba(0,0,0,0.35);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      color: var(--text);
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 56px;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .logo { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; }
+    .logo span { color: var(--accent); }
+
+    .nav-tabs { display: flex; gap: 4px; }
+    .nav-tab {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .nav-tab:hover { color: var(--text); background: var(--surface2); }
+    .nav-tab.active { background: var(--accent-bg); color: var(--accent); }
+
+    .topbar-right { display: flex; gap: 8px; align-items: center; }
+
+    .icon-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+      line-height: 1;
+    }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .firebase-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .firebase-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .firebase-btn.connected { border-color: #4ade80; color: #22c55e; }
+    [data-theme="dark"] .firebase-btn.connected { color: #4ade80; }
+    .fb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+    .firebase-btn.connected .fb-dot { background: #4ade80; }
+
+    /* ── Page sections ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .section-title { font-size: 1.4rem; font-weight: 700; }
+    .section-sub { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--accent-dk); }
+
+    /* ── Day tabs ── */
+    .day-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .day-tab {
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-size: 0.83rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .day-tab:hover { border-color: var(--accent); color: var(--accent); }
+    .day-tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .day-tab .count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.25);
+      border-radius: 10px;
+      padding: 1px 7px;
+      font-size: 0.75rem;
+      margin-left: 5px;
+    }
+    .day-tab:not(.active) .count {
+      background: var(--surface2);
+      color: var(--faint);
+    }
+
+    /* ── Update card ── */
+    .updates-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .update-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: var(--card-shadow);
+      transition: border-color 0.15s;
+    }
+    .update-card:hover { border-color: var(--accent); }
+
+    .update-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--accent-bg);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .update-name { font-weight: 700; font-size: 0.9rem; }
+    .update-time { font-size: 0.75rem; color: var(--muted); margin-left: auto; }
+
+    .update-message {
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .update-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .update-link:hover { text-decoration: underline; }
+
+    .reactions-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .reaction-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--muted);
+    }
+    .reaction-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .reaction-btn.reacted { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+    .reaction-count { font-weight: 600; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.9rem; }
+
+    /* ── Post form ── */
+    .post-form-wrap {
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 0 0 3px var(--accent-bg);
+    }
+    .post-form-wrap h3 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; }
+
+    .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; }
+    .form-group label { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+    .form-input, .form-textarea {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      color: var(--text);
+      font-family: inherit;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    .form-input:focus, .form-textarea:focus { border-color: var(--accent); }
+    .form-textarea { resize: vertical; min-height: 80px; }
+    .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+    .btn-cancel {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .btn-cancel:hover { border-color: var(--text); color: var(--text); }
+
+    /* ── Projects grid ── */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .project-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .project-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+    .project-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .project-title { font-size: 1rem; font-weight: 700; }
+    .project-author {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: var(--tag-bg);
+      padding: 3px 8px;
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+    .project-desc { font-size: 0.85rem; line-height: 1.55; color: var(--muted); flex: 1; }
+    .project-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.8rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .project-link:hover { text-decoration: underline; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      width: 100%;
+      max-width: 500px;
+      margin: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    .modal h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; }
+    .modal-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+    .fb-config-area {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.8rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--text);
+      resize: vertical;
+      min-height: 120px;
+      outline: none;
+    }
+    .fb-config-area:focus { border-color: var(--accent); }
+    .fb-status { font-size: 0.8rem; margin-top: 8px; min-height: 18px; }
+    .fb-status.ok { color: #4ade80; }
+    .fb-status.err { color: #f87171; }
+
+    /* ── Toasts ── */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast {
+      background: var(--text);
+      color: var(--bg);
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      animation: slideIn 0.2s ease;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    @keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ── Loading ── */
+    .loading { text-align: center; padding: 40px; color: var(--muted); font-size: 0.88rem; }
+
+    @media (max-width: 600px) {
+      .topbar { padding: 0 16px; }
+      .container { padding: 20px 16px; }
+      .logo { font-size: 1rem; }
+      .nav-tab { padding: 5px 10px; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Top bar ── -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">🤖 <span>AI</span> Week</div>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" onclick="showPage('updates')">Updates</button>
+      <button class="nav-tab" onclick="showPage('projects')">Projects</button>
+    </nav>
+  </div>
+  <div class="topbar-right">
+    <button class="firebase-btn" id="fb-btn" onclick="openFbModal()">
+      <span class="fb-dot"></span>
+      <span id="fb-label">Connect Firebase</span>
+    </button>
+    <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle theme">🌙</button>
+  </div>
+</header>
+
+<!-- ── Updates page ── -->
+<div class="page active" id="page-updates">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Daily Updates</div>
+        <div class="section-sub">What's the team shipping today?</div>
+      </div>
+      <button class="btn-primary" onclick="togglePostForm()">+ Post Update</button>
+    </div>
+
+    <!-- Post form (hidden by default) -->
+    <div class="post-form-wrap" id="post-form" style="display:none;">
+      <h3>Share your progress</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Your name</label>
+          <input class="form-input" id="pf-name" placeholder="e.g. Alex" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Day</label>
+          <select class="form-input" id="pf-day">
+            <option value="mon">Monday</option>
+            <option value="tue">Tuesday</option>
+            <option value="wed">Wednesday</option>
+            <option value="thu">Thursday</option>
+            <option value="fri">Friday</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label>What did you build / learn / discover?</label>
+        <textarea class="form-textarea" id="pf-message" placeholder="Share your update, progress, or a cool finding..."></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Link (optional — demo, repo, doc…)</label>
+        <input class="form-input" id="pf-link" placeholder="https://" type="url">
+      </div>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="togglePostForm()">Cancel</button>
+        <button class="btn-primary" onclick="submitUpdate()">Post Update</button>
+      </div>
+    </div>
+
+    <!-- Day selector -->
+    <div class="day-tabs" id="day-tabs">
+      <button class="day-tab active" data-day="mon" onclick="selectDay('mon')">Mon <span class="count" id="count-mon">0</span></button>
+      <button class="day-tab" data-day="tue" onclick="selectDay('tue')">Tue <span class="count" id="count-tue">0</span></button>
+      <button class="day-tab" data-day="wed" onclick="selectDay('wed')">Wed <span class="count" id="count-wed">0</span></button>
+      <button class="day-tab" data-day="thu" onclick="selectDay('thu')">Thu <span class="count" id="count-thu">0</span></button>
+      <button class="day-tab" data-day="fri" onclick="selectDay('fri')">Fri <span class="count" id="count-fri">0</span></button>
+    </div>
+
+    <div id="updates-list" class="updates-list">
+      <div class="loading">Connect Firebase to see live updates…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Projects page ── -->
+<div class="page" id="page-projects">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Project Showcase</div>
+        <div class="section-sub">AI projects being built this week</div>
+      </div>
+      <button class="btn-primary" onclick="toggleProjectForm()">+ Add Project</button>
+    </div>
+
+    <!-- Project form (hidden by default) -->
+    <div class="post-form-wrap" id="project-form" style="display:none;">
+      <h3>Add your project</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Your name</label>
+          <input class="form-input" id="proj-name" placeholder="e.g. Alex" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Project title</label>
+          <input class="form-input" id="proj-title" placeholder="e.g. AI Email Summariser">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label>Description</label>
+        <textarea class="form-textarea" id="proj-desc" placeholder="What does it do? What tools / models are you using?"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Link (optional — demo, repo, slide deck…)</label>
+        <input class="form-input" id="proj-link" placeholder="https://" type="url">
+      </div>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="toggleProjectForm()">Cancel</button>
+        <button class="btn-primary" onclick="submitProject()">Add Project</button>
+      </div>
+    </div>
+
+    <div id="projects-grid" class="projects-grid">
+      <div class="loading" style="grid-column:1/-1">Connect Firebase to see projects…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Firebase modal ── -->
+<div class="modal-overlay" id="fb-modal">
+  <div class="modal">
+    <h2>🔥 Connect Firebase</h2>
+    <p class="modal-sub">
+      Paste your Firebase config object below. You can find it in the Firebase console under
+      <strong>Project Settings → Your apps → SDK setup → Config</strong>.
+    </p>
+    <textarea class="fb-config-area" id="fb-config-input" placeholder='const firebaseConfig = {
+  apiKey: "...",
+  authDomain: "...",
+  databaseURL: "...",
+  projectId: "...",
+  ...
+};'></textarea>
+    <div class="fb-status" id="fb-status"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeFbModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveFirebaseConfig()">Connect</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast container ── -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- ── Scripts ── -->
+<script type="module">
+  // ── Firebase SDK (loaded dynamically) ─────────────────────────────────────
+  let db = null;
+  let fbApp = null;
+
+  const REACTIONS = ['🔥', '❤️', '✨', '🤯'];
+  const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
+  const DAY_NAMES = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday' };
+
+  let currentDay = 'mon';
+  let allUpdates = {};
+  let allProjects = {};
+
+  // Track which items the user has already reacted to (localStorage)
+  function getMyReactions() {
+    try { return JSON.parse(localStorage.getItem('ai-week-reactions') || '{}'); } catch { return {}; }
+  }
+  function setMyReaction(id, emoji, value) {
+    const r = getMyReactions();
+    if (!r[id]) r[id] = {};
+    if (value) r[id][emoji] = true; else delete r[id][emoji];
+    localStorage.setItem('ai-week-reactions', JSON.stringify(r));
+  }
+  function hasReacted(id, emoji) { return !!(getMyReactions()[id] || {})[emoji]; }
+
+  // ── Firebase init ──────────────────────────────────────────────────────────
+  async function initFirebase(config) {
+    const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+    const { getDatabase, ref, onValue, push, serverTimestamp, runTransaction }
+      = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
+
+    if (!config.databaseURL) {
+      throw new Error('databaseURL is required — make sure Realtime Database is enabled in Firebase console.');
+    }
+
+    const apps = getApps();
+    fbApp = apps.length ? apps[0] : initializeApp(config);
+    db = getDatabase(fbApp);
+
+    // Subscribe to updates
+    onValue(ref(db, 'updates'), snap => {
+      allUpdates = snap.val() || {};
+      renderUpdates();
+      updateDayCounts();
+    });
+
+    // Subscribe to projects
+    onValue(ref(db, 'projects'), snap => {
+      allProjects = snap.val() || {};
+      renderProjects();
+    });
+
+    window._fbFns = { db, ref, push, serverTimestamp, runTransaction };
+  }
+
+  // ── Config persistence ─────────────────────────────────────────────────────
+  function loadSavedConfig() {
+    const raw = localStorage.getItem('ai-week-firebase-config');
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  function parseConfigInput(text) {
+    // Accept raw JS object or JSON
+    let cleaned = text.trim();
+    // Strip "const firebaseConfig = " prefix if present
+    cleaned = cleaned.replace(/^const\s+\w+\s*=\s*/, '').replace(/;?\s*$/, '');
+    // Try JSON parse
+    try { return JSON.parse(cleaned); } catch {}
+    // Convert JS object keys to quoted keys for JSON
+    try {
+      const jsonified = cleaned
+        .replace(/\/\/.*$/gm, '')          // strip line comments
+        .replace(/,\s*([}\]])/g, '$1')     // trailing commas
+        .replace(/(\w+)\s*:/g, '"$1":');   // quote keys
+      return JSON.parse(jsonified);
+    } catch {}
+    throw new Error('Could not parse config — make sure you paste the full firebaseConfig object.');
+  }
+
+  // ── Render updates ─────────────────────────────────────────────────────────
+  function renderUpdates() {
+    const list = document.getElementById('updates-list');
+    const dayUpdates = Object.entries(allUpdates)
+      .filter(([, u]) => u.day === currentDay)
+      .sort(([, a], [, b]) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    if (dayUpdates.length === 0) {
+      list.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">📝</div>
+        <p>No updates yet for ${DAY_NAMES[currentDay]}.<br>Be the first to post!</p>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = dayUpdates.map(([id, u]) => {
+      const initials = (u.name || '?').slice(0, 2).toUpperCase();
+      const time = u.timestamp ? new Date(u.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      const reactions = u.reactions || {};
+
+      const reactionBtns = REACTIONS.map(emoji => {
+        const count = reactions[emoji] || 0;
+        const reacted = hasReacted(id, emoji);
+        return `<button class="reaction-btn ${reacted ? 'reacted' : ''}"
+          onclick="window.reactTo('updates', '${id}', '${emoji}')" title="${emoji}">
+          ${emoji} <span class="reaction-count">${count || ''}</span>
+        </button>`;
+      }).join('');
+
+      const linkHtml = u.link
+        ? `<a class="update-link" href="${esc(u.link)}" target="_blank" rel="noopener">🔗 ${esc(u.link)}</a>`
+        : '';
+
+      return `<div class="update-card">
+        <div class="update-meta">
+          <div class="avatar">${esc(initials)}</div>
+          <div class="update-name">${esc(u.name || 'Anonymous')}</div>
+          <div class="update-time">${time}</div>
+        </div>
+        <div class="update-message">${esc(u.message || '')}</div>
+        ${linkHtml}
+        <div class="reactions-row">${reactionBtns}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function updateDayCounts() {
+    DAYS.forEach(day => {
+      const count = Object.values(allUpdates).filter(u => u.day === day).length;
+      const el = document.getElementById(`count-${day}`);
+      if (el) el.textContent = count;
+    });
+  }
+
+  // ── Render projects ────────────────────────────────────────────────────────
+  function renderProjects() {
+    const grid = document.getElementById('projects-grid');
+    const projects = Object.entries(allProjects)
+      .sort(([, a], [, b]) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    if (projects.length === 0) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">🚀</div>
+        <p>No projects yet — add yours!</p>
+      </div>`;
+      return;
+    }
+
+    grid.innerHTML = projects.map(([id, p]) => {
+      const reactions = p.reactions || {};
+      const reactionBtns = REACTIONS.map(emoji => {
+        const count = reactions[emoji] || 0;
+        const reacted = hasReacted(id, emoji);
+        return `<button class="reaction-btn ${reacted ? 'reacted' : ''}"
+          onclick="window.reactTo('projects', '${id}', '${emoji}')" title="${emoji}">
+          ${emoji} <span class="reaction-count">${count || ''}</span>
+        </button>`;
+      }).join('');
+
+      const linkHtml = p.link
+        ? `<a class="project-link" href="${esc(p.link)}" target="_blank" rel="noopener">🔗 View project</a>`
+        : '';
+
+      return `<div class="project-card">
+        <div class="project-header">
+          <div class="project-title">${esc(p.title || 'Untitled')}</div>
+          <div class="project-author">👤 ${esc(p.name || 'Anonymous')}</div>
+        </div>
+        <div class="project-desc">${esc(p.description || '')}</div>
+        ${linkHtml}
+        <div class="reactions-row">${reactionBtns}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── React to an item ───────────────────────────────────────────────────────
+  window.reactTo = async function(collection, id, emoji) {
+    if (!window._fbFns) { toast('Connect Firebase first!'); return; }
+    const { db, ref, runTransaction } = window._fbFns;
+    const already = hasReacted(id, emoji);
+    const path = `${collection}/${id}/reactions/${encodeEmoji(emoji)}`;
+    await runTransaction(ref(db, path), current => (current || 0) + (already ? -1 : 1));
+    setMyReaction(id, emoji, !already);
+  };
+
+  function encodeEmoji(emoji) {
+    // Firebase keys can't contain certain chars; encode emoji to hex
+    return [...emoji].map(c => c.codePointAt(0).toString(16)).join('_');
+  }
+
+  // Patch onValue to decode emoji keys back when reading
+  function decodeReactions(raw) {
+    if (!raw) return {};
+    const out = {};
+    for (const [key, val] of Object.entries(raw)) {
+      // Decode hex-encoded emoji keys
+      try {
+        const emoji = key.split('_').map(h => String.fromCodePoint(parseInt(h, 16))).join('');
+        out[emoji] = val;
+      } catch { out[key] = val; }
+    }
+    return out;
+  }
+
+  // Override reaction reading to decode keys
+  function patchReactions(obj) {
+    if (!obj) return {};
+    const patched = {};
+    for (const [id, item] of Object.entries(obj)) {
+      patched[id] = { ...item, reactions: decodeReactions(item.reactions) };
+    }
+    return patched;
+  }
+
+  // Re-patch the onValue callbacks to decode reactions
+  const _origInitFirebase = initFirebase;
+
+  // ── Submit update ──────────────────────────────────────────────────────────
+  window.submitUpdate = async function() {
+    if (!window._fbFns) { toast('Connect Firebase first!'); return; }
+    const name = document.getElementById('pf-name').value.trim();
+    const day  = document.getElementById('pf-day').value;
+    const msg  = document.getElementById('pf-message').value.trim();
+    const link = document.getElementById('pf-link').value.trim();
+
+    if (!name) { toast('Please enter your name.'); return; }
+    if (!msg)  { toast('Please write an update.'); return; }
+
+    const { db, ref, push, serverTimestamp } = window._fbFns;
+    await push(ref(db, 'updates'), {
+      name, day, message: msg,
+      ...(link ? { link } : {}),
+      timestamp: Date.now()
+    });
+
+    document.getElementById('pf-message').value = '';
+    document.getElementById('pf-link').value = '';
+    togglePostForm();
+    selectDay(day);
+    toast('Update posted! 🎉');
+  };
+
+  // ── Submit project ─────────────────────────────────────────────────────────
+  window.submitProject = async function() {
+    if (!window._fbFns) { toast('Connect Firebase first!'); return; }
+    const name  = document.getElementById('proj-name').value.trim();
+    const title = document.getElementById('proj-title').value.trim();
+    const desc  = document.getElementById('proj-desc').value.trim();
+    const link  = document.getElementById('proj-link').value.trim();
+
+    if (!name)  { toast('Please enter your name.'); return; }
+    if (!title) { toast('Please enter a project title.'); return; }
+
+    const { db, ref, push } = window._fbFns;
+    await push(ref(db, 'projects'), {
+      name, title,
+      ...(desc ? { description: desc } : {}),
+      ...(link ? { link } : {}),
+      timestamp: Date.now()
+    });
+
+    document.getElementById('proj-title').value = '';
+    document.getElementById('proj-desc').value = '';
+    document.getElementById('proj-link').value = '';
+    toggleProjectForm();
+    toast('Project added! 🚀');
+  };
+
+  // ── UI helpers (exposed globally) ─────────────────────────────────────────
+  window.showPage = function(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(`page-${page}`).classList.add('active');
+    document.querySelector(`.nav-tab[onclick="showPage('${page}')"]`).classList.add('active');
+  };
+
+  window.selectDay = function(day) {
+    currentDay = day;
+    document.querySelectorAll('.day-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.day === day);
+    });
+    renderUpdates();
+  };
+
+  window.togglePostForm = function() {
+    const f = document.getElementById('post-form');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    if (f.style.display === 'block') {
+      // Set day to current selection
+      document.getElementById('pf-day').value = currentDay;
+      document.getElementById('pf-name').focus();
+    }
+  };
+
+  window.toggleProjectForm = function() {
+    const f = document.getElementById('project-form');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    if (f.style.display === 'block') document.getElementById('proj-name').focus();
+  };
+
+  window.toggleTheme = function() {
+    const html = document.documentElement;
+    const dark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', dark ? 'light' : 'dark');
+    document.getElementById('theme-btn').textContent = dark ? '🌙' : '☀️';
+    localStorage.setItem('ai-week-theme', dark ? 'light' : 'dark');
+  };
+
+  // ── Firebase modal ─────────────────────────────────────────────────────────
+  window.openFbModal = function() {
+    const saved = localStorage.getItem('ai-week-firebase-config-raw') || '';
+    document.getElementById('fb-config-input').value = saved;
+    document.getElementById('fb-status').textContent = '';
+    document.getElementById('fb-modal').classList.add('open');
+  };
+  window.closeFbModal = function() {
+    document.getElementById('fb-modal').classList.remove('open');
+  };
+
+  window.saveFirebaseConfig = async function() {
+    const raw = document.getElementById('fb-config-input').value;
+    const statusEl = document.getElementById('fb-status');
+    statusEl.textContent = 'Connecting…';
+    statusEl.className = 'fb-status';
+    try {
+      const config = parseConfigInput(raw);
+      await initFirebase(config);
+      localStorage.setItem('ai-week-firebase-config', JSON.stringify(config));
+      localStorage.setItem('ai-week-firebase-config-raw', raw);
+      setFbConnected(true);
+      statusEl.textContent = '✓ Connected!';
+      statusEl.className = 'fb-status ok';
+      setTimeout(closeFbModal, 800);
+    } catch (e) {
+      statusEl.textContent = '✗ ' + e.message;
+      statusEl.className = 'fb-status err';
+    }
+  };
+
+  function setFbConnected(on) {
+    const btn = document.getElementById('fb-btn');
+    const lbl = document.getElementById('fb-label');
+    btn.className = 'firebase-btn' + (on ? ' connected' : '');
+    lbl.textContent = on ? 'Firebase connected' : 'Connect Firebase';
+  }
+
+  // ── Toast ──────────────────────────────────────────────────────────────────
+  function toast(msg) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    document.getElementById('toasts').appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+  }
+
+  // ── Escape HTML ────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Patch onValue to decode reactions ─────────────────────────────────────
+  // We override allUpdates/allProjects assignment via a custom setter approach.
+  // Simpler: just decode in render functions.
+  const _renderUpdates = renderUpdates;
+  const _renderProjects = renderProjects;
+
+  // Monkey-patch initFirebase so the onValue callbacks decode reactions
+  async function patchedInitFirebase(config) {
+    const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+    const { getDatabase, ref, onValue, push, serverTimestamp, runTransaction }
+      = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
+
+    if (!config.databaseURL) {
+      throw new Error('databaseURL is required — make sure Realtime Database is enabled in Firebase console.');
+    }
+
+    const apps = getApps();
+    fbApp = apps.length ? apps[0] : initializeApp(config);
+    db = getDatabase(fbApp);
+
+    onValue(ref(db, 'updates'), snap => {
+      allUpdates = patchReactions(snap.val() || {});
+      renderUpdates();
+      updateDayCounts();
+    });
+
+    onValue(ref(db, 'projects'), snap => {
+      allProjects = patchReactions(snap.val() || {});
+      renderProjects();
+    });
+
+    window._fbFns = { db, ref, push, serverTimestamp, runTransaction };
+  }
+
+  // Replace the initFirebase reference
+  window._initFirebase = patchedInitFirebase;
+
+  // ── Re-wire saveFirebaseConfig to use patched init ─────────────────────────
+  window.saveFirebaseConfig = async function() {
+    const raw = document.getElementById('fb-config-input').value;
+    const statusEl = document.getElementById('fb-status');
+    statusEl.textContent = 'Connecting…';
+    statusEl.className = 'fb-status';
+    try {
+      const config = parseConfigInput(raw);
+      await window._initFirebase(config);
+      localStorage.setItem('ai-week-firebase-config', JSON.stringify(config));
+      localStorage.setItem('ai-week-firebase-config-raw', raw);
+      setFbConnected(true);
+      statusEl.textContent = '✓ Connected!';
+      statusEl.className = 'fb-status ok';
+      setTimeout(closeFbModal, 800);
+    } catch (e) {
+      statusEl.textContent = '✗ ' + e.message;
+      statusEl.className = 'fb-status err';
+    }
+  };
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  (async function init() {
+    // Restore theme
+    const theme = localStorage.getItem('ai-week-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('theme-btn').textContent = theme === 'dark' ? '☀️' : '🌙';
+
+    // Auto-connect if config saved
+    const saved = loadSavedConfig();
+    if (saved) {
+      try {
+        await window._initFirebase(saved);
+        setFbConnected(true);
+      } catch (e) {
+        console.warn('Auto-connect failed:', e);
+      }
+    }
+
+    // Pick today's day tab
+    const todayIdx = new Date().getDay(); // 0=Sun, 1=Mon...5=Fri
+    if (todayIdx >= 1 && todayIdx <= 5) {
+      const dayKey = DAYS[todayIdx - 1];
+      selectDay(dayKey);
+    }
+  })();
+</script>
+</body>
+</html>
